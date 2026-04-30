@@ -60,6 +60,53 @@ public:
     }
 
     /**
+     * @brief 通过 anchor 查找 schema
+     * @param anchor anchor 标识符
+     * @return 找到的 schema 指针，未找到返回 nullptr
+     */
+    JsonSchema *findSchemaByAnchor(const QString &anchor) const
+    {
+        return m_schemasByAnchor.value(anchor, nullptr);
+    }
+
+    /**
+     * @brief 通过路径查找 schema
+     * @param path schema 文件路径
+     * @return 找到的 schema 指针，未找到返回 nullptr
+     */
+    JsonSchema *findSchemaByRef(const QString &path) const
+    {
+        return m_schemasByRef.value(path, nullptr);
+    }
+
+    /**
+     * @brief 清空所有注册的 schema
+     */
+    void clear()
+    {
+        m_schemasByAnchor.clear();
+        m_schemasByRef.clear();
+    }
+
+    /**
+     * @brief 获取所有 anchor 映射
+     * @return anchor 到 schema 的映射
+     */
+    QMap<QString, JsonSchema *> schemasByAnchor() const
+    {
+        return m_schemasByAnchor;
+    }
+
+    /**
+     * @brief 获取所有路径映射
+     * @return 路径到 schema 的映射
+     */
+    QMap<QString, JsonSchema *> schemasByRef() const
+    {
+        return m_schemasByRef;
+    }
+
+    /**
      * @brief 解析 $ref 引用
      *
      * 支持以下格式的引用：
@@ -116,7 +163,7 @@ public:
             return m_schemasByAnchor.value(fullAnchor);
 
         // 3) 在路径映射中查找
-        for (auto key : m_schemasByRef.keys()) {
+        for (const QString &key : m_schemasByRef.keys()) {
             if (!idPart.isEmpty() && key.endsWith(idPart)) {
                 found = false;
                 return m_schemasByRef.value(key);

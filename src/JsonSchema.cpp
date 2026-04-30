@@ -93,7 +93,7 @@ bool JsonSchema::validate(const QJsonValue &value, QString *errorMessage) const
 }
 
 // 注册自定义关键字
-void JsonSchema::registerCustomKeyword(const QString &keyword, Validator validator)
+void JsonSchema::registerCustomKeyword(const QString &keyword, const Validator &validator)
 {
     getCustomKeywordRegistry()[keyword] = validator;
 }
@@ -101,6 +101,8 @@ void JsonSchema::registerCustomKeyword(const QString &keyword, Validator validat
 // 私有方法：加载 schema
 void JsonSchema::loadSchema(const QJsonObject &schemaObject, const JsonSchema *parent)
 {
+    m_schemaObject = schemaObject;
+
     // 1) 读取 $schema（可选）
     if (schemaObject.contains("$schema") && schemaObject.value("$schema").isString())
         m_dollarSchema = schemaObject.value("$schema").toString();
@@ -511,7 +513,8 @@ bool JsonSchema::checkAllOf(const QJsonValue &value, QSet<const JsonSchema *> &v
 }
 
 // anyOf 验证
-bool JsonSchema::checkAnyOf(const QJsonValue &value, QSet<const JsonSchema *> &visited, QString *errorMessage) const
+bool JsonSchema::checkAnyOf(const QJsonValue &value, const QSet<const JsonSchema *> &visited,
+                            QString *errorMessage) const
 {
     if (m_anyOf.isEmpty())
         return true;
@@ -526,7 +529,8 @@ bool JsonSchema::checkAnyOf(const QJsonValue &value, QSet<const JsonSchema *> &v
 }
 
 // oneOf 验证
-bool JsonSchema::checkOneOf(const QJsonValue &value, QSet<const JsonSchema *> &visited, QString *errorMessage) const
+bool JsonSchema::checkOneOf(const QJsonValue &value, const QSet<const JsonSchema *> &visited,
+                            QString *errorMessage) const
 {
     if (m_oneOf.isEmpty())
         return true;
@@ -584,7 +588,7 @@ bool JsonSchema::validateNumber(const QJsonValue &value, QString *errorMessage) 
     if (m_hasMultipleOf && !qFuzzyIsNull(m_multipleOf)) {
         const double ratio = d / m_multipleOf;
         const double frac = ratio - qFloor(ratio);
-        const double eps = 1e-12;
+        constexpr double eps = 1e-12;
         if (qAbs(frac) > eps && qAbs(frac - 1.0) > eps)
             return setError(errorMessage, QString("%1 不是 %2 的倍数").arg(d).arg(m_multipleOf));
     }
@@ -617,7 +621,8 @@ bool JsonSchema::validateNumber(const QJsonValue &value, QString *errorMessage) 
 }
 
 // 对象验证
-bool JsonSchema::validateObject(const QJsonValue &value, QSet<const JsonSchema *> &visited, QString *errorMessage) const
+bool JsonSchema::validateObject(const QJsonValue &value, const QSet<const JsonSchema *> &visited,
+                                QString *errorMessage) const
 {
     if (!value.isObject())
         return setError(errorMessage, "值不是对象");
@@ -739,7 +744,8 @@ bool JsonSchema::validateObject(const QJsonValue &value, QSet<const JsonSchema *
 }
 
 // 数组验证
-bool JsonSchema::validateArray(const QJsonValue &value, QSet<const JsonSchema *> &visited, QString *errorMessage) const
+bool JsonSchema::validateArray(const QJsonValue &value, const QSet<const JsonSchema *> &visited,
+                               QString *errorMessage) const
 {
     if (!value.isArray())
         return setError(errorMessage, "值不是数组");
@@ -819,7 +825,7 @@ bool JsonSchema::validateArray(const QJsonValue &value, QSet<const JsonSchema *>
 // 检查类型
 bool JsonSchema::checkType(const QJsonValue &v) const
 {
-    return QJsonSchema::checkType(v, m_type);
+    return QJsonSchema::checkSchemaType(v, m_type);
 }
 
 // 从约束推断类型
@@ -949,7 +955,7 @@ JsonSchema *JsonSchema::findMainSchema()
 // 获取类型
 SchemaType JsonSchema::getType(const QJsonValue &v)
 {
-    return QJsonSchema::getType(v);
+    return QJsonSchema::schemaTypeFromValue(v);
 }
 
 // 解析类型
@@ -995,5 +1001,25 @@ bool JsonSchema::setError(QString *errorMessage, const QString &msg)
     if (errorMessage)
         *errorMessage = msg;
     return false;
+}
+
+// ========== 新增接口实现 ==========
+
+// 获取指定属性的 schema
+const JsonSchema *JsonSchema::propertySchema(const QString &name) const
+{
+    auto it = m_properties.find(name);
+    if (it != m_properties.end())
+        return &it.value();
+    return nullptr;
+}
+
+// 获取 prefixItems schemas (返回 const 指针列表)
+QList<const JsonSchema *> JsonSchema::prefixItemsSchemas() const
+{
+    QList<const JsonSchema *> result;
+    for (const auto *schema : m_prefixItemsSchemas)
+        result.append(schema);
+    return result;
 }
 } // namespace QJsonSchema

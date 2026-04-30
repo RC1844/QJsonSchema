@@ -1,8 +1,9 @@
 #pragma once
 
-#include <cmath>
+// 先包含 Qt 头文件
 #include <QtCore/QJsonValue>
 #include <QtCore/QString>
+#include <QtCore/QtMath>
 
 /**
  * @file SchemaType.h
@@ -24,7 +25,7 @@ enum class SchemaType
     String,  ///< 字符串类型
     Number,  ///< 数字类型（浮点数）
     Integer, ///< 整数类型
-    Boolean, ///< 布尔类型
+    Boolean, ///< 布尔类型（使用 Boolean 避免 Windows 宏冲突）
     Object,  ///< 对象类型
     Array,   ///< 数组类型
     Null     ///< 空值类型
@@ -32,12 +33,12 @@ enum class SchemaType
 
 /**
  * @brief 将 SchemaType 枚举转换为字符串表示
- * @param t 要转换的 SchemaType
+ * @param type 要转换的 SchemaType
  * @return 对应的类型名称字符串
  */
-inline QString toString(SchemaType t)
+inline QString toString(const SchemaType type)
 {
-    switch (t) {
+    switch (type) {
         case SchemaType::String:
             return "string";
         case SchemaType::Number:
@@ -75,8 +76,8 @@ inline QString toString(const QJsonValue &v)
     if (v.isNull())
         return "null";
     if (v.isDouble()) {
-        double value = v.toDouble();
-        if (std::floor(value) == value)
+        const double value = v.toDouble();
+        if (qFloor(value) == value)
             return "integer";
         return "number";
     }
@@ -89,7 +90,7 @@ inline QString toString(const QJsonValue &v)
  * @param expectedType 期望的类型
  * @return 如果值匹配类型则返回 true
  */
-inline bool checkType(const QJsonValue &v, SchemaType expectedType)
+inline bool checkSchemaType(const QJsonValue &v, const SchemaType expectedType)
 {
     switch (expectedType) {
         case SchemaType::String:
@@ -98,8 +99,8 @@ inline bool checkType(const QJsonValue &v, SchemaType expectedType)
             return v.isDouble();
         case SchemaType::Integer:
             if (v.isDouble()) {
-                double value = v.toDouble();
-                return std::floor(value) == value;
+                const double value = v.toDouble();
+                return qFloor(value) == value;
             }
             return false;
         case SchemaType::Boolean:
@@ -121,7 +122,7 @@ inline bool checkType(const QJsonValue &v, SchemaType expectedType)
  * @param v 要推断的 JSON 值
  * @return 推断出的 SchemaType
  */
-inline SchemaType getType(const QJsonValue &v)
+inline SchemaType schemaTypeFromValue(const QJsonValue &v)
 {
     if (v.isString())
         return SchemaType::String;
@@ -145,7 +146,7 @@ inline SchemaType getType(const QJsonValue &v)
  */
 inline SchemaType parseType(const QString &typeStr)
 {
-    QString lowerStr = typeStr.toLower().trimmed();
+    const QString lowerStr = typeStr.toLower().trimmed();
     if (lowerStr == "string")
         return SchemaType::String;
     if (lowerStr == "number")

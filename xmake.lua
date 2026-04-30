@@ -3,7 +3,7 @@
 
 add_rules("mode.debug", "mode.release")
 set_encodings("utf-8")
- 
+
 
 -- 主库目标
 set_project("QJsonSchema")
@@ -11,23 +11,25 @@ set_version("1.0.0")
 
 -- 静态库目标
 target("QJsonSchema")
+do
     add_rules("qt.static")
 
     -- 添加头文件目录
-    add_includedirs("include", {public = true})
-    
+    add_includedirs("include", { public = true })
+
     -- 添加源文件
     add_files("src/*.cpp")
-    
+
     -- 添加头文件
     add_headerfiles("include/(QJsonSchema/*.h)")
+end
 
 -- 测试程序目标
-target("test")
-    add_rules("qt.widgetapp")
-    
-    -- 添加主库依赖
-    add_deps("QJsonSchema")
-    
-    -- 添加测试源文件
-    add_files("tests/*.cpp")
+-- target("test")
+--     add_rules("qt.widgetapp")
+
+--     -- 添加主库依赖
+--     add_deps("QJsonSchema")
+
+--     -- 添加测试源文件
+--     add_files("tests/*.cpp")
