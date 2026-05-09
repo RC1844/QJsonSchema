@@ -364,6 +364,76 @@ void JsonSchema::loadSchema(const QJsonObject &schemaObject, const JsonSchema *p
             m_internalCustomKeywordValidator.append(userKey);
         }
     }
+
+    // 20) 加载元数据字段
+    if (schemaObject.contains("title") && schemaObject.value("title").isString())
+        m_title = schemaObject.value("title").toString();
+    if (schemaObject.contains("description") && schemaObject.value("description").isString())
+        m_description = schemaObject.value("description").toString();
+    if (schemaObject.contains("default"))
+        m_defaultValue = schemaObject.value("default");
+    if (schemaObject.contains("examples") && schemaObject.value("examples").isArray()) {
+        QJsonArray examplesArr = schemaObject.value("examples").toArray();
+        for (const auto &ex : examplesArr)
+            m_examples.append(ex);
+    }
+    if (schemaObject.contains("readOnly")) {
+        m_readOnly = schemaObject.value("readOnly").toBool(false);
+        m_hasReadOnly = true;
+    }
+    if (schemaObject.contains("writeOnly")) {
+        m_writeOnly = schemaObject.value("writeOnly").toBool(false);
+        m_hasWriteOnly = true;
+    }
+    if (schemaObject.contains("deprecated")) {
+        m_deprecated = schemaObject.value("deprecated").toBool(false);
+        m_hasDeprecated = true;
+    }
+    if (schemaObject.contains("$comment") && schemaObject.value("$comment").isString())
+        m_comment = schemaObject.value("$comment").toString();
+
+    // 21) 加载内容相关字段
+    if (schemaObject.contains("contentEncoding") && schemaObject.value("contentEncoding").isString())
+        m_contentEncoding = schemaObject.value("contentEncoding").toString();
+    if (schemaObject.contains("contentMediaType") && schemaObject.value("contentMediaType").isString())
+        m_contentMediaType = schemaObject.value("contentMediaType").toString();
+    if (schemaObject.contains("contentSchema") && schemaObject.value("contentSchema").isObject())
+        m_contentSchema.reset(new JsonSchema(schemaObject.value("contentSchema").toObject(), this));
+    if (schemaObject.contains("propertyNames") && schemaObject.value("propertyNames").isObject())
+        m_propertyNamesSchema.reset(new JsonSchema(schemaObject.value("propertyNames").toObject(), this));
+
+    // 22) 加载 unevaluatedProperties/unevaluatedItems (Draft 2019-09+)
+    if (schemaObject.contains("unevaluatedProperties")) {
+        QJsonValue upVal = schemaObject.value("unevaluatedProperties");
+        if (upVal.isBool()) {
+            if (!upVal.toBool())
+                m_unevaluatedPropertiesIsFalse = true;
+        }
+        else if (upVal.isObject()) {
+            m_unevaluatedPropertiesSchema.reset(new JsonSchema(upVal.toObject(), this));
+        }
+    }
+    if (schemaObject.contains("unevaluatedItems")) {
+        QJsonValue uiVal = schemaObject.value("unevaluatedItems");
+        if (uiVal.isBool()) {
+            if (!uiVal.toBool())
+                m_unevaluatedItemsIsFalse = true;
+        }
+        else if (uiVal.isObject()) {
+            m_unevaluatedItemsSchema.reset(new JsonSchema(uiVal.toObject(), this));
+        }
+    }
+
+    // 23) 加载 dependentSchemas
+    if (schemaObject.contains("dependentSchemas") && schemaObject.value("dependentSchemas").isObject()) {
+        QJsonObject dsObj = schemaObject.value("dependentSchemas").toObject();
+        for (auto it = dsObj.begin(); it != dsObj.end(); ++it) {
+            if (it.value().isObject()) {
+                JsonSchema dep(it.value().toObject(), this);
+                m_dependentSchemas.insert(it.key(), dep);
+            }
+        }
+    }
 }
 
 // 内部验证方法
@@ -941,6 +1011,34 @@ void JsonSchema::copyFrom(const JsonSchema &other)
     m_parent = other.m_parent;
     m_recursiveSchema = other.m_recursiveSchema;
     m_internalCustomKeywordValidator = other.m_internalCustomKeywordValidator;
+
+    // 拷贝元数据
+    m_title = other.m_title;
+    m_description = other.m_description;
+    m_defaultValue = other.m_defaultValue;
+    m_examples = other.m_examples;
+    m_comment = other.m_comment;
+    m_readOnly = other.m_readOnly;
+    m_writeOnly = other.m_writeOnly;
+    m_deprecated = other.m_deprecated;
+    m_hasReadOnly = other.m_hasReadOnly;
+    m_hasWriteOnly = other.m_hasWriteOnly;
+    m_hasDeprecated = other.m_hasDeprecated;
+
+    // 拷贝内容相关
+    m_contentEncoding = other.m_contentEncoding;
+    m_contentMediaType = other.m_contentMediaType;
+    m_contentSchema.reset(other.m_contentSchema ? new JsonSchema(*other.m_contentSchema) : nullptr);
+    m_propertyNamesSchema.reset(other.m_propertyNamesSchema ? new JsonSchema(*other.m_propertyNamesSchema) : nullptr);
+    m_unevaluatedPropertiesSchema.reset(
+        other.m_unevaluatedPropertiesSchema ? new JsonSchema(*other.m_unevaluatedPropertiesSchema) : nullptr);
+    m_unevaluatedItemsSchema.reset(other.m_unevaluatedItemsSchema ? new JsonSchema(*other.m_unevaluatedItemsSchema)
+                                                                   : nullptr);
+    m_unevaluatedPropertiesIsFalse = other.m_unevaluatedPropertiesIsFalse;
+    m_unevaluatedItemsIsFalse = other.m_unevaluatedItemsIsFalse;
+
+    // 拷贝 dependentSchemas
+    m_dependentSchemas = other.m_dependentSchemas;
 }
 
 // 查找主 schema
@@ -1021,5 +1119,14 @@ QList<const JsonSchema *> JsonSchema::prefixItemsSchemas() const
     for (const auto *schema : m_prefixItemsSchemas)
         result.append(schema);
     return result;
+}
+
+// 获取指定 def 的 schema
+const JsonSchema *JsonSchema::defSchema(const QString &name) const
+{
+    auto it = m_defs.find(name);
+    if (it != m_defs.end())
+        return &it.value();
+    return nullptr;
 }
 } // namespace QJsonSchema

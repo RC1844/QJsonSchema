@@ -556,6 +556,57 @@ private:
                 m_internalCustomKeywordValidator.append(userKey);
             }
         }
+
+        // 保存原始 schema 对象
+        m_schemaObject = schemaObject;
+
+        // 加载元数据字段
+        if (schemaObject.contains("title") && schemaObject.value("title").isString())
+            m_title = schemaObject.value("title").toString();
+        if (schemaObject.contains("description") && schemaObject.value("description").isString())
+            m_description = schemaObject.value("description").toString();
+        if (schemaObject.contains("default"))
+            m_defaultValue = schemaObject.value("default");
+        if (schemaObject.contains("examples") && schemaObject.value("examples").isArray()) {
+            QJsonArray examplesArr = schemaObject.value("examples").toArray();
+            for (const auto &ex : examplesArr)
+                m_examples.append(ex);
+        }
+        if (schemaObject.contains("readOnly")) {
+            m_readOnly = schemaObject.value("readOnly").toBool(false);
+            m_hasReadOnly = true;
+        }
+        if (schemaObject.contains("writeOnly")) {
+            m_writeOnly = schemaObject.value("writeOnly").toBool(false);
+            m_hasWriteOnly = true;
+        }
+        if (schemaObject.contains("deprecated")) {
+            m_deprecated = schemaObject.value("deprecated").toBool(false);
+            m_hasDeprecated = true;
+        }
+        if (schemaObject.contains("$comment") && schemaObject.value("$comment").isString())
+            m_comment = schemaObject.value("$comment").toString();
+
+        // 加载内容相关字段
+        if (schemaObject.contains("contentEncoding") && schemaObject.value("contentEncoding").isString())
+            m_contentEncoding = schemaObject.value("contentEncoding").toString();
+        if (schemaObject.contains("contentMediaType") && schemaObject.value("contentMediaType").isString())
+            m_contentMediaType = schemaObject.value("contentMediaType").toString();
+        if (schemaObject.contains("contentSchema") && schemaObject.value("contentSchema").isObject())
+            m_contentSchema.reset(new SwJsonSchema(schemaObject.value("contentSchema").toObject(), this));
+        if (schemaObject.contains("propertyNames") && schemaObject.value("propertyNames").isObject())
+            m_propertyNamesSchema.reset(new SwJsonSchema(schemaObject.value("propertyNames").toObject(), this));
+
+        // 加载 dependentSchemas
+        if (schemaObject.contains("dependentSchemas") && schemaObject.value("dependentSchemas").isObject()) {
+            QJsonObject dsObj = schemaObject.value("dependentSchemas").toObject();
+            for (auto it = dsObj.begin(); it != dsObj.end(); ++it) {
+                if (it.value().isObject()) {
+                    SwJsonSchema dep(it.value().toObject(), this);
+                    m_dependentSchemas.insert(it.key(), dep);
+                }
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -1098,6 +1149,28 @@ private:
         m_parent = other.m_parent;
         m_recursiveSchema = other.m_recursiveSchema;
         m_internalCustomKeywordValidator = other.m_internalCustomKeywordValidator;
+
+        // 拷贝元数据
+        m_title = other.m_title;
+        m_description = other.m_description;
+        m_defaultValue = other.m_defaultValue;
+        m_examples = other.m_examples;
+        m_comment = other.m_comment;
+        m_readOnly = other.m_readOnly;
+        m_writeOnly = other.m_writeOnly;
+        m_deprecated = other.m_deprecated;
+        m_hasReadOnly = other.m_hasReadOnly;
+        m_hasWriteOnly = other.m_hasWriteOnly;
+        m_hasDeprecated = other.m_hasDeprecated;
+
+        // 拷贝内容相关
+        m_contentEncoding = other.m_contentEncoding;
+        m_contentMediaType = other.m_contentMediaType;
+        m_contentSchema.reset(other.m_contentSchema ? new SwJsonSchema(*other.m_contentSchema) : nullptr);
+        m_propertyNamesSchema.reset(other.m_propertyNamesSchema ? new SwJsonSchema(*other.m_propertyNamesSchema) : nullptr);
+
+        // 拷贝 dependentSchemas
+        m_dependentSchemas = other.m_dependentSchemas;
     }
 
     void deduceTypeFromConstraints()
@@ -1406,6 +1479,184 @@ private:
         return m_parent;
     }
 
+    // ========== 新增接口：描述信息 ==========
+    QString title() const { return m_title; }
+    bool hasTitle() const { return !m_title.isEmpty(); }
+    QString description() const { return m_description; }
+    bool hasDescription() const { return !m_description.isEmpty(); }
+
+    // ========== 新增接口：默认值和示例 ==========
+    QJsonValue defaultValue() const { return m_defaultValue; }
+    bool hasDefault() const { return !m_defaultValue.isUndefined(); }
+    QList<QJsonValue> examples() const { return m_examples; }
+    bool hasExamples() const { return !m_examples.isEmpty(); }
+
+    // ========== 新增接口：读写权限 ==========
+    bool isReadOnly() const { return m_readOnly; }
+    bool hasReadOnly() const { return m_hasReadOnly; }
+    bool isWriteOnly() const { return m_writeOnly; }
+    bool hasWriteOnly() const { return m_hasWriteOnly; }
+    bool isDeprecated() const { return m_deprecated; }
+    bool hasDeprecated() const { return m_hasDeprecated; }
+
+    // ========== 新增接口：contains 约束 ==========
+    const SwJsonSchema *containsSchema() const { return m_containsSchema.data(); }
+    int minContains() const { return m_minContains; }
+    bool hasMinContains() const { return m_minContains >= 0; }
+    int maxContains() const { return m_maxContains; }
+    bool hasMaxContains() const { return m_maxContains >= 0; }
+
+    // ========== 新增接口：依赖属性 ==========
+    QMap<QString, SwJsonSchema> dependentSchemas() const { return m_dependentSchemas; }
+    bool hasDependentSchemas() const { return !m_dependentSchemas.isEmpty(); }
+
+    // ========== 新增接口：$defs 访问 ==========
+    QMap<QString, SwJsonSchema> defs() const { return m_defs; }
+    bool hasDef(const QString &name) const { return m_defs.contains(name); }
+    const SwJsonSchema *defSchema(const QString &name) const;
+
+    // ========== 新增接口：条件验证 ==========
+    const SwJsonSchema *ifSchema() const { return m_ifSchema.data(); }
+    const SwJsonSchema *thenSchema() const { return m_thenSchema.data(); }
+    const SwJsonSchema *elseSchema() const { return m_elseSchema.data(); }
+
+    // ========== 新增接口：内容相关 ==========
+    QString contentEncoding() const { return m_contentEncoding; }
+    bool hasContentEncoding() const { return !m_contentEncoding.isEmpty(); }
+    QString contentMediaType() const { return m_contentMediaType; }
+    bool hasContentMediaType() const { return !m_contentMediaType.isEmpty(); }
+    const SwJsonSchema *contentSchema() const { return m_contentSchema.data(); }
+
+    // ========== 新增接口：URI 和引用信息 ==========
+    QString baseUri() const { return m_baseUri; }
+    QString ref() const { return m_dollarRef; }
+    bool hasRef() const { return !m_dollarRef.isEmpty(); }
+    QString dollarSchema() const { return m_dollarSchema; }
+
+    // ========== 新增接口：additionalItems ==========
+    const SwJsonSchema *additionalItemsSchema() const { return m_additionalItemsSchema.data(); }
+
+    // ========== 新增接口：propertyNames ==========
+    const SwJsonSchema *propertyNamesSchema() const { return m_propertyNamesSchema.data(); }
+
+    // ========== 新增接口：元数据相关 ==========
+    QString comment() const { return m_comment; }
+    bool hasComment() const { return !m_comment.isEmpty(); }
+
+    // ========== 新增接口：辅助方法 ==========
+    bool hasAnyOf() const { return !m_anyOf.isEmpty(); }
+    bool hasAllOf() const { return !m_allOf.isEmpty(); }
+    bool hasOneOf() const { return !m_oneOf.isEmpty(); }
+    bool hasNot() const { return m_notSchema != nullptr; }
+    QStringList propertyNamesList() const { return m_properties.keys(); }
+    QStringList patternPropertiesList() const { return m_patternProperties.keys(); }
+    bool isRecursiveRef() const { return m_recursiveSchema != nullptr; }
+
+    // ========== 新增接口：UI 元信息 ==========
+    struct UiMetadata {
+        QString title;
+        QString description;
+        QJsonValue defaultValue;
+        QList<QJsonValue> examples;
+        bool readOnly = false;
+        bool writeOnly = false;
+        bool deprecated = false;
+        SchemaType type = SchemaType::Invalid;
+    };
+    UiMetadata uiMetadata() const {
+        UiMetadata meta;
+        meta.title = m_title;
+        meta.description = m_description;
+        meta.defaultValue = m_defaultValue;
+        meta.examples = m_examples;
+        meta.readOnly = m_readOnly;
+        meta.writeOnly = m_writeOnly;
+        meta.deprecated = m_deprecated;
+        meta.type = m_type;
+        return meta;
+    }
+
+    // ========== 新增接口：检查方法 ==========
+    bool hasFormat() const { return !m_format.isEmpty(); }
+    bool hasPattern() const { return m_hasPattern; }
+    bool hasAdditionalProperties() const { return m_additionalPropertiesSchema != nullptr; }
+    bool hasUniqueItems() const { return m_uniqueItems; }
+    bool hasContains() const { return m_containsSchema != nullptr; }
+    QMap<QString, QStringList> dependentRequired() const { return m_dependentRequired; }
+    const SwJsonSchema *itemsSchema() const { return m_itemsSchema.data(); }
+    QList<const SwJsonSchema *> prefixItemsSchemas() const;
+    QMap<QString, SwJsonSchema> properties() const { return m_properties; }
+    QMap<QString, SwJsonSchema> patternProperties() const { return m_patternProperties; }
+    bool hasProperty(const QString &name) const { return m_properties.contains(name); }
+    const SwJsonSchema *propertySchema(const QString &name) const;
+    QSet<QString> requiredProperties() const { return m_required; }
+    bool isRequired(const QString &propertyName) const { return m_required.contains(propertyName); }
+    bool additionalPropertiesIsFalse() const { return m_additionalPropertiesIsFalse; }
+    const SwJsonSchema *additionalPropertiesSchema() const { return m_additionalPropertiesSchema.data(); }
+    QList<SwJsonSchema> allOf() const { return m_allOf; }
+    QList<SwJsonSchema> anyOf() const { return m_anyOf; }
+    QList<SwJsonSchema> oneOf() const { return m_oneOf; }
+    const SwJsonSchema *notSchema() const { return m_notSchema.data(); }
+
+    // ========== 新增接口：数值约束 ==========
+    double minimum() const { return m_minimum; }
+    double maximum() const { return m_maximum; }
+    bool hasMinimum() const { return m_hasMinimum; }
+    bool hasMaximum() const { return m_hasMaximum; }
+    bool hasExclusiveMinimum() const { return m_hasMinimum && m_exclusiveMinimum; }
+    bool exclusiveMinimum() const { return m_exclusiveMinimum; }
+    bool hasExclusiveMaximum() const { return m_hasMaximum && m_exclusiveMaximum; }
+    bool exclusiveMaximum() const { return m_exclusiveMaximum; }
+    double multipleOf() const { return m_multipleOf; }
+    bool hasMultipleOf() const { return m_hasMultipleOf; }
+
+    // ========== 新增接口：字符串约束 ==========
+    int minLength() const { return m_minLength; }
+    bool hasMinLength() const { return m_minLength >= 0; }
+    int maxLength() const { return m_maxLength; }
+    bool hasMaxLength() const { return m_maxLength >= 0; }
+    QString pattern() const { return m_pattern; }
+
+    // ========== 新增接口：数组约束 ==========
+    int minItems() const { return m_minItems; }
+    bool hasMinItems() const { return m_minItems >= 0; }
+    int maxItems() const { return m_maxItems; }
+    bool hasMaxItems() const { return m_maxItems >= 0; }
+    bool uniqueItems() const { return m_uniqueItems; }
+
+    // ========== 新增接口：枚举和常量 ==========
+    QList<QJsonValue> enumValues() const { return m_enumValues; }
+    bool hasEnum() const { return !m_enumValues.isEmpty(); }
+    QJsonValue constValue() const { return m_constValue; }
+    bool hasConst() const { return !m_constValue.isUndefined(); }
+
+    // ========== 新增接口：其他 ==========
+    SchemaType schemaType() const { return m_type; }
+    QString getId() const { return m_id; }
+    QJsonValue getValue(const QString &name) const { return m_schemaObject.value(name); }
+
+    // ========== 新增接口实现 ==========
+    const SwJsonSchema *propertySchema(const QString &name) const {
+        auto it = m_properties.find(name);
+        if (it != m_properties.end())
+            return &it.value();
+        return nullptr;
+    }
+
+    const SwJsonSchema *defSchema(const QString &name) const {
+        auto it = m_defs.find(name);
+        if (it != m_defs.end())
+            return &it.value();
+        return nullptr;
+    }
+
+    QList<const SwJsonSchema *> prefixItemsSchemas() const {
+        QList<const SwJsonSchema *> result;
+        for (const auto *schema : m_prefixItemsSchemas)
+            result.append(schema);
+        return result;
+    }
+
     SwJsonSchema *findMainSchema()
     {
         SwJsonSchema *seeked = this;
@@ -1421,6 +1672,8 @@ private:
     }
 
 private:
+    QJsonObject m_schemaObject;
+
     // -----------------------------------------------------------------------
     //                      Données membres
     // -----------------------------------------------------------------------
@@ -1428,10 +1681,33 @@ private:
     QString m_baseUri;
     QString m_dollarAnchor;
     QString m_dollarRef;
+    QString m_id = "root";
 
     SchemaType m_type = SchemaType::Invalid;
     QList<QJsonValue> m_enumValues;
     QJsonValue m_constValue = QJsonValue(QJsonValue::Undefined);
+
+    // 元数据
+    QString m_title;
+    QString m_description;
+    QJsonValue m_defaultValue;
+    QList<QJsonValue> m_examples;
+    QString m_comment;
+    bool m_readOnly = false;
+    bool m_writeOnly = false;
+    bool m_deprecated = false;
+    bool m_hasReadOnly = false;
+    bool m_hasWriteOnly = false;
+    bool m_hasDeprecated = false;
+
+    // 内容相关
+    QString m_contentEncoding;
+    QString m_contentMediaType;
+    QScopedPointer<SwJsonSchema> m_contentSchema;
+    QScopedPointer<SwJsonSchema> m_propertyNamesSchema;
+
+    // 依赖 schema
+    QMap<QString, SwJsonSchema> m_dependentSchemas;
 
     // Numérique
     double m_multipleOf = 0.0;
