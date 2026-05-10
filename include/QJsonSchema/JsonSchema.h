@@ -100,17 +100,548 @@ public:
         return m_parent;
     }
 
-    // ========== 新增接口：类型相关 ==========
+    // ========== 新增接口：描述信息 ==========
     /**
-     * @brief 获取 schema 类型
-     * @return schema 类型枚举
+     * @brief 获取标题
+     * @return title 值
      */
-    SchemaType schemaType() const
+    QString title() const
     {
-        return m_type;
+        return m_title;
     }
 
-    // ========== 新增接口：对象属性 ==========
+    /**
+     * @brief 检查是否有 title
+     * @return 有 title 返回 true
+     */
+    bool hasTitle() const
+    {
+        return !m_title.isEmpty();
+    }
+
+    /**
+     * @brief 获取描述
+     * @return description 值
+     */
+    QString description() const
+    {
+        return m_description;
+    }
+
+    /**
+     * @brief 检查是否有 description
+     * @return 有 description 返回 true
+     */
+    bool hasDescription() const
+    {
+        return !m_description.isEmpty();
+    }
+
+    // ========== 新增接口：默认值和示例 ==========
+    /**
+     * @brief 获取默认值
+     * @return default 值
+     */
+    QJsonValue defaultValue() const
+    {
+        return m_defaultValue;
+    }
+
+    /**
+     * @brief 检查是否有 default
+     * @return 有 default 返回 true
+     */
+    bool hasDefault() const
+    {
+        return !m_defaultValue.isUndefined();
+    }
+
+    /**
+     * @brief 获取示例值列表
+     * @return examples 值列表
+     */
+    QList<QJsonValue> examples() const
+    {
+        return m_examples;
+    }
+
+    /**
+     * @brief 检查是否有 examples
+     * @return 有 examples 返回 true
+     */
+    bool hasExamples() const
+    {
+        return !m_examples.isEmpty();
+    }
+
+    // ========== 新增接口：读写权限 ==========
+    /**
+     * @brief 获取 readOnly 标志
+     * @return readOnly 值
+     */
+    bool isReadOnly() const
+    {
+        return m_readOnly;
+    }
+
+    /**
+     * @brief 检查是否设置了 readOnly
+     * @return 设置了 readOnly 返回 true
+     */
+    bool hasReadOnly() const
+    {
+        return m_hasReadOnly;
+    }
+
+    /**
+     * @brief 获取 writeOnly 标志
+     * @return writeOnly 值
+     */
+    bool isWriteOnly() const
+    {
+        return m_writeOnly;
+    }
+
+    /**
+     * @brief 检查是否设置了 writeOnly
+     * @return 设置了 writeOnly 返回 true
+     */
+    bool hasWriteOnly() const
+    {
+        return m_hasWriteOnly;
+    }
+
+    /**
+     * @brief 获取 deprecated 标志
+     * @return deprecated 值
+     */
+    bool isDeprecated() const
+    {
+        return m_deprecated;
+    }
+
+    /**
+     * @brief 检查是否设置了 deprecated
+     * @return 设置了 deprecated 返回 true
+     */
+    bool hasDeprecated() const
+    {
+        return m_hasDeprecated;
+    }
+
+    // ========== 新增接口：contains 约束 ==========
+    /**
+     * @brief 获取 contains schema
+     * @return contains schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *containsSchema() const
+    {
+        return m_containsSchema.data();
+    }
+
+    /**
+     * @brief 获取 minContains
+     * @return minContains 值，未设置返回 -1
+     */
+    int minContains() const
+    {
+        return m_minContains;
+    }
+
+    /**
+     * @brief 检查是否设置了 minContains
+     * @return 设置了 minContains 返回 true
+     */
+    bool hasMinContains() const
+    {
+        return m_minContains >= 0;
+    }
+
+    /**
+     * @brief 获取 maxContains
+     * @return maxContains 值，未设置返回 -1
+     */
+    int maxContains() const
+    {
+        return m_maxContains;
+    }
+
+    /**
+     * @brief 检查是否设置了 maxContains
+     * @return 设置了 maxContains 返回 true
+     */
+    bool hasMaxContains() const
+    {
+        return m_maxContains >= 0;
+    }
+
+    // ========== 新增接口：依赖属性 ==========
+    /**
+     * @brief 获取 dependentSchemas
+     * @return 属性名到 schema 的映射
+     */
+    QMap<QString, JsonSchema> dependentSchemas() const
+    {
+        return m_dependentSchemas;
+    }
+
+    // ========== 新增接口：$defs 访问 ==========
+    /**
+     * @brief 获取所有 $defs 定义
+     * @return defs 名称到 schema 的映射
+     */
+    QMap<QString, JsonSchema> defs() const
+    {
+        return m_defs;
+    }
+
+    /**
+     * @brief 检查是否有指定 def
+     * @param name def 名称
+     * @return 存在返回 true
+     */
+    bool hasDef(const QString &name) const
+    {
+        return m_defs.contains(name);
+    }
+
+    /**
+     * @brief 获取指定 def 的 schema
+     * @param name def 名称
+     * @return def schema 指针，不存在返回 nullptr
+     */
+    const JsonSchema *defSchema(const QString &name) const;
+
+    // ========== 新增接口：条件验证 ==========
+    /**
+     * @brief 获取 if schema
+     * @return if schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *ifSchema() const
+    {
+        return m_ifSchema.data();
+    }
+
+    /**
+     * @brief 获取 then schema
+     * @return then schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *thenSchema() const
+    {
+        return m_thenSchema.data();
+    }
+
+    /**
+     * @brief 获取 else schema
+     * @return else schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *elseSchema() const
+    {
+        return m_elseSchema.data();
+    }
+
+    // ========== 新增接口：内容相关 ==========
+    /**
+     * @brief 获取 contentEncoding
+     * @return contentEncoding 值
+     */
+    QString contentEncoding() const
+    {
+        return m_contentEncoding;
+    }
+
+    /**
+     * @brief 检查是否有 contentEncoding
+     * @return 有 contentEncoding 返回 true
+     */
+    bool hasContentEncoding() const
+    {
+        return !m_contentEncoding.isEmpty();
+    }
+
+    /**
+     * @brief 获取 contentMediaType
+     * @return contentMediaType 值
+     */
+    QString contentMediaType() const
+    {
+        return m_contentMediaType;
+    }
+
+    /**
+     * @brief 检查是否有 contentMediaType
+     * @return 有 contentMediaType 返回 true
+     */
+    bool hasContentMediaType() const
+    {
+        return !m_contentMediaType.isEmpty();
+    }
+
+    /**
+     * @brief 获取 contentSchema
+     * @return contentSchema schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *contentSchema() const
+    {
+        return m_contentSchema.data();
+    }
+
+    // ========== 新增接口：URI 和引用信息 ==========
+    /**
+     * @brief 获取基础 URI
+     * @return baseUri 值
+     */
+    QString baseUri() const
+    {
+        return m_baseUri;
+    }
+
+    /**
+     * @brief 获取 $ref 值
+     * @return $ref 值
+     */
+    QString ref() const
+    {
+        return m_dollarRef;
+    }
+
+    /**
+     * @brief 检查是否有 $ref
+     * @return 有 $ref 返回 true
+     */
+    bool hasRef() const
+    {
+        return !m_dollarRef.isEmpty();
+    }
+
+    /**
+     * @brief 获取 $schema 值
+     * @return $schema 值
+     */
+    QString dollarSchema() const
+    {
+        return m_dollarSchema;
+    }
+
+    // ========== 新增接口：additionalItems ==========
+    /**
+     * @brief 获取 additionalItems schema
+     * @return schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *additionalItemsSchema() const
+    {
+        return m_additionalItemsSchema.data();
+    }
+
+    // ========== 新增接口：propertyNames ==========
+    /**
+     * @brief 获取 propertyNames schema
+     * @return schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *propertyNamesSchema() const
+    {
+        return m_propertyNamesSchema.data();
+    }
+
+    // ========== 新增接口：unevaluatedProperties/unevaluatedItems ==========
+    /**
+     * @brief 获取 unevaluatedProperties
+     * @return schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *unevaluatedPropertiesSchema() const
+    {
+        return m_unevaluatedPropertiesSchema.data();
+    }
+
+    /**
+     * @brief 获取 unevaluatedItems
+     * @return schema 指针，无定义返回 nullptr
+     */
+    const JsonSchema *unevaluatedItemsSchema() const
+    {
+        return m_unevaluatedItemsSchema.data();
+    }
+
+    // ========== 新增接口：元数据相关 ==========
+    /**
+     * @brief 获取 comments
+     * @return $comment 值
+     */
+    QString comment() const
+    {
+        return m_comment;
+    }
+
+    /**
+     * @brief 检查是否有 comment
+     * @return 有 comment 返回 true
+     */
+    bool hasComment() const
+    {
+        return !m_comment.isEmpty();
+    }
+
+    // ========== 新增接口：比较和辅助 ==========
+    /**
+     * @brief 检查是否有 anyOf
+     * @return 有 anyOf 返回 true
+     */
+    bool hasAnyOf() const
+    {
+        return !m_anyOf.isEmpty();
+    }
+
+    /**
+     * @brief 检查是否有 allOf
+     * @return 有 allOf 返回 true
+     */
+    bool hasAllOf() const
+    {
+        return !m_allOf.isEmpty();
+    }
+
+    /**
+     * @brief 检查是否有 oneOf
+     * @return 有 oneOf 返回 true
+     */
+    bool hasOneOf() const
+    {
+        return !m_oneOf.isEmpty();
+    }
+
+    /**
+     * @brief 检查是否有 not
+     * @return 有 not 返回 true
+     */
+    bool hasNot() const
+    {
+        return m_notSchema != nullptr;
+    }
+
+    /**
+     * @brief 获取所有属性名列表
+     * @return 属性名列表
+     */
+    QStringList propertyNamesList() const
+    {
+        return m_properties.keys();
+    }
+
+    /**
+     * @brief 获取所有 patternProperties 模式列表
+     * @return 模式列表
+     */
+    QStringList patternPropertiesList() const
+    {
+        return m_patternProperties.keys();
+    }
+
+    /**
+     * @brief 检查是否为递归引用 schema
+     * @return 是递归引用返回 true
+     */
+    bool isRecursiveRef() const
+    {
+        return m_recursiveSchema != nullptr;
+    }
+
+    // ========== 新增接口：获取元信息结构体 ==========
+    /**
+     * @brief UI 元信息结构体
+     */
+    struct UiMetadata {
+        QString title;
+        QString description;
+        QJsonValue defaultValue;
+        QList<QJsonValue> examples;
+        bool readOnly = false;
+        bool writeOnly = false;
+        bool deprecated = false;
+        SchemaType type = SchemaType::Invalid;
+    };
+
+    /**
+     * @brief 获取 UI 元信息
+     * @return UiMetadata 结构体
+     */
+    UiMetadata uiMetadata() const
+    {
+        UiMetadata meta;
+        meta.title = m_title;
+        meta.description = m_description;
+        meta.defaultValue = m_defaultValue;
+        meta.examples = m_examples;
+        meta.readOnly = m_readOnly;
+        meta.writeOnly = m_writeOnly;
+        meta.deprecated = m_deprecated;
+        meta.type = m_type;
+        return meta;
+    }
+
+    /**
+     * @brief 检查是否有 format
+     * @return 有 format 返回 true
+     */
+    bool hasFormat() const
+    {
+        return !m_format.isEmpty();
+    }
+
+    /**
+     * @brief 检查是否有 pattern
+     * @return 有 pattern 返回 true
+     */
+    bool hasPattern() const
+    {
+        return m_hasPattern;
+    }
+
+    /**
+     * @brief 检查是否设置了 additionalProperties
+     * @return additionalProperties 不为 false 返回 true
+     */
+    bool hasAdditionalProperties() const
+    {
+        return m_additionalPropertiesSchema != nullptr;
+    }
+
+    /**
+     * @brief 检查是否有 uniqueItems 约束
+     * @return 有 uniqueItems 返回 true
+     */
+    bool hasUniqueItems() const
+    {
+        return m_uniqueItems;
+    }
+
+    /**
+     * @brief 检查是否有 contains 约束
+     * @return 有 contains 返回 true
+     */
+    bool hasContains() const
+    {
+        return m_containsSchema != nullptr;
+    }
+
+    /**
+     * @brief 检查是否有 dependentSchemas
+     * @return 有 dependentSchemas 返回 true
+     */
+    bool hasDependentSchemas() const
+    {
+        return !m_dependentSchemas.isEmpty();
+    }
+
+    /**
+     * @brief 获取 dependentRequired 列表
+     * @return 属性名到依赖列表的映射
+     */
+    QMap<QString, QStringList> dependentRequired() const
+    {
+        return m_dependentRequired;
+    }
+
+    QString getId() const
     /**
      * @brief 获取对象属性列表
      * @return 属性名到 schema 的映射
@@ -518,7 +1049,35 @@ private:
     static QMap<QString, Validator> &getCustomKeywordRegistry();
     static bool setError(QString *errorMessage, const QString &msg);
 
-    QJsonObject m_schemaObject;
+     QJsonObject m_schemaObject;
+
+     // 元数据
+    QString m_title;              ///< title 标题
+    QString m_description;        ///< description 描述
+    QJsonValue m_defaultValue;    ///< default 默认值
+    QList<QJsonValue> m_examples; ///< examples 示例值列表
+    QString m_comment;            ///< $comment 注释
+    bool m_readOnly = false;     ///< readOnly 只读标志
+    bool m_writeOnly = false;     ///< writeOnly 只写标志
+    bool m_deprecated = false;    ///< deprecated 废弃标志
+    bool m_hasReadOnly = false;   ///< 是否设置了 readOnly
+    bool m_hasWriteOnly = false;  ///< 是否设置了 writeOnly
+    bool m_hasDeprecated = false; ///< 是否设置了 deprecated
+
+    // 内容相关
+    QString m_contentEncoding;                         ///< contentEncoding 内容编码
+    QString m_contentMediaType;                       ///< contentMediaType 内容媒体类型
+    QScopedPointer<JsonSchema> m_contentSchema;      ///< contentSchema 内容 schema
+    QScopedPointer<JsonSchema> m_propertyNamesSchema; ///< propertyNames schema
+    QScopedPointer<JsonSchema> m_unevaluatedPropertiesSchema; ///< unevaluatedProperties
+    QScopedPointer<JsonSchema> m_unevaluatedItemsSchema;      ///< unevaluatedItems
+
+    // 依赖 schema
+    QMap<QString, JsonSchema> m_dependentSchemas; ///< dependentSchemas 依赖 schema
+
+    // unevaluated 标志
+    bool m_unevaluatedPropertiesIsFalse = false; ///< unevaluatedProperties 为 false
+    bool m_unevaluatedItemsIsFalse = false;      ///< unevaluatedItems 为 false
 
     // 数据成员
     QString m_dollarSchema; ///< $schema 属性
